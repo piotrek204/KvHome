@@ -4,7 +4,7 @@ The goal of the project is found an easy way to create an application with a sim
 available for different operating systems and integrating various physical devices (IoT).
 
 Environment:
-
+<pre>
   ---------              ----------------                  --------------
   |       |    RS-485    | Converter    |      eth         |            |
   |  PLC  | ------------ | RS-485 / Eth | ---------------- | KvHome App |
@@ -16,16 +16,17 @@ Environment:
                                                        --- | KvHome App |
                                                            |            |
                                                            --------------
+</pre>
 
-Screen shots (Ubuntu):
--Live Data tab:
+## Screen shots (Ubuntu):
+### Live Data tab:
 <img src="/screenshot/Live_data.png" width="440px">
 
--Chart tab:
+### Chart tab:
 <img src="/screenshot/Chart.png" width="440px">
 
--Heater details tab:
+### Heater details tab:
 <img src="/screenshot/Heater_details.png" width="440px">
 
--Heater details tab - setting value in PLC:
+### Heater details tab - setting value in PLC:
 <img src="/screenshot/Set_value.png" width="440px">
