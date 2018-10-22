@@ -26,7 +26,6 @@ from garden_graph import Graph, MeshLinePlot
 require('1.8.0')
 Config.set('graphics', 'multisamples', '0')
 
-
 Builder.load_string("""
 <CustomLabel@Label>:
     size_hint: (1.0, None)
@@ -80,10 +79,10 @@ Builder.load_string("""
             id: _liveDataLayout
             padding: 5
             spacing: 5
-            
+
     TabbedPanelItem:
         text: 'Chart'
-        BoxLayout: 
+        BoxLayout:
             id: _chartLayout
             size_hint: 1, 1
 
@@ -110,7 +109,6 @@ class CustomButton(Button):
 
 
 class SetBox(BoxLayout):
-
     def __init__(self, **kwargs):
         super(SetBox, self).__init__(**kwargs)
         self.text_input = TextInput(text=str(kwargs.get('value', "")), text_align='center')
@@ -208,14 +206,15 @@ class PlcItem():
         }
 
     heater_sp_dict = {
-        key: value for key, value in plc_item_dict.items() if key in [
-        'heater_temp_sp', 'temp_point_1', 'temp_point_2', 'temp_point_3', 'temp_point_4', 'temp_point_5', 'th_point_1',
-        'th_point_2', 'th_point_3', 'th_point_4', 'th_point_5']
+        key: value for key, value in plc_item_dict.items() if key in ['heater_temp_sp', 'temp_point_1', 'temp_point_2',
+                                                                      'temp_point_3', 'temp_point_4', 'temp_point_5',
+                                                                      'th_point_1', 'th_point_2', 'th_point_3',
+                                                                      'th_point_4', 'th_point_5']
         }
 
     boiler_dict = {
         key: value for key, value in plc_item_dict.items() if key in ['boiler_temp', 'boiler_sp', 'boiler_delta']
-    }
+        }
 
     living_room_dict = {
         key: value for key, value in plc_item_dict.items() if key in ['l_room_temp', 'l_room_sp', 'l_room_delta']
@@ -227,7 +226,6 @@ class PlcItem():
 
 
 class ClientEngine():
-
     def __init__(self, **kwargs):
         self.callback = kwargs.get('callback', None)
         self.svrIp = kwargs.get('svrIp', None)
@@ -239,7 +237,6 @@ class ClientEngine():
 
     def start(self):
         self.th = threading.Thread(target=self.worker)
-        # self.th.daemon = True
         self.th.start()
         self.stopper.clear()
         self.queue_req.join()
@@ -260,7 +257,6 @@ class ClientEngine():
                 if self.client.connect():
                     while not self.queue_req.empty():
                         request, args, callback = self.queue_req.get()
-                        # print 'request with callback: ', callback
                         self.parse_response(request(**args), callback)
                         self.queue_req.task_done()
                         time.sleep(0.1)
@@ -274,8 +270,6 @@ class ClientEngine():
         if not self.queue_req.empty():
             request, args, callback = self.queue_req.get()
             self.parse_response(request(**args), callback)
-        else:
-            pass
 
     def read_reg(self, offset, len, response_callback):
         req = (self.client.read_holding_registers, {'address': offset, 'count': len, 'unit': 0x01}, response_callback)
@@ -336,7 +330,7 @@ class LayoutApp(TabbedPanel):
         elif tp_txt_name == 'Heater details':
             method = self.read_details_data
         else:
-            method = lambda x: None
+            method = callable
         self.cyclic_read = Clock.schedule_interval(method, 1)
 
     def setup_gui(self):
@@ -347,15 +341,20 @@ class LayoutApp(TabbedPanel):
         self._prepare_chart_layout()
         self._prepare_details_layout()
 
+    def _create_custom_widget(self, id, attributes):
+        if attributes.access == 'RW':
+            widget = CustomButton(text=' {}'.format(attributes.name), id=id, on_press=self.show_set_popup)
+            widget.reg_no = attributes.reg_no
+        else:
+            widget = CustomLabel(text=' {}'.format(attributes.name), id=id)
+        widget.name_txt = attributes.name
+        return widget
+
     def _prepare_live_data_layout(self):
         for items_dict in self.LD_ITEMS_LIST:
             self.tbLiveDataLayout.add_widget(Separator())
-            for key, value in sorted(items_dict.items(), key=lambda x:self.LD_SORT_MAP.index(x[0])):
-                if value.access == 'RW':
-                    widget = CustomButton(text=' {}'.format(value.name), id=key, on_press=self.show_set_popup)
-                    widget.reg_no = value.reg_no
-                else:
-                    widget = CustomLabel(text=' {}'.format(value.name), id=key)
+            for key, value in sorted(items_dict.items(), key=lambda x: self.LD_SORT_MAP.index(x[0])):
+                widget = self._create_custom_widget(key, value)
                 self.ld_wdgts_list.append(widget)
                 self.tbLiveDataLayout.add_widget(widget)
         self.tbLiveDataLayout.add_widget(Separator())
@@ -377,28 +376,26 @@ class LayoutApp(TabbedPanel):
     def _prepare_details_layout(self):
         for items_dict in self.DETAILS_ITEMS_LIST:
             self.tbDetailsLayout.add_widget(Separator())
-            for key, value in sorted(items_dict.items(), key=lambda x:self.DETAILS_SORT_MAP.index(x[0])):
-                if value.access == 'RW':
-                    widget = CustomButton(text=' {}'.format(value.name), id=key, on_press=self.show_set_popup)
-                    widget.reg_no = value.reg_no
-                else:
-                    widget = CustomLabel(text=' {}'.format(value.name), id=key)
+            for key, value in sorted(items_dict.items(), key=lambda x: self.DETAILS_SORT_MAP.index(x[0])):
+                widget = self._create_custom_widget(key, value)
                 self.details_wdgts_list.append(widget)
                 self.tbDetailsLayout.add_widget(widget)
         self.tbDetailsLayout.add_widget(Separator())
 
     def show_set_popup(self, instance):
         popup = SetPopup(title=instance.name_txt, set_val=instance.value, send_callback=self.write_reg,
-                        reg_no=instance.reg_no)
+                         reg_no=instance.reg_no)
         popup.open()
+
+    def _update_widget(self, widget, plc_item, value):
+        widget.value = value
+        widget.text = ' {} = {}{}'.format(plc_item.name, value, plc_item.unit)
 
     def _fill_main_window_widgets(self, data, dt):
         for widget in self.ld_wdgts_list:
             plc_item = filter(lambda x: x.get(widget.id), self.LD_ITEMS_LIST)[0][widget.id]
             value = (float(ctypes.c_short(data[plc_item.reg_no]).value) / plc_item.factor)
-            widget.value = value
-            widget.name_txt = plc_item.name
-            widget.text = ' {} = {}{}'.format(plc_item.name, value, plc_item.unit)
+            self._update_widget(widget, plc_item, value)
 
     def _update_plot_points(self, data, dt):
         self.plot_point_list = []
@@ -411,15 +408,13 @@ class LayoutApp(TabbedPanel):
         for widget in self.details_wdgts_list:
             plc_item = filter(lambda x: x.get(widget.id), self.DETAILS_ITEMS_LIST)[0][widget.id]
             value = (float(ctypes.c_short(data[plc_item.reg_no]).value) / plc_item.factor)
-            widget.value = value
-            widget.name_txt = plc_item.name
-            widget.text = ' {} = {}{}'.format(plc_item.name, value, plc_item.unit)
+            self._update_widget(widget, plc_item, value)
 
     def stop(self):
         self.comm.stop()
 
     def on_connection_lost(self):
-        print("connection lost app")
+        pass
 
     def read_live_data(self, inst):
         self.comm.read_reg(0, 32, self.on_resp_live_data)
@@ -440,11 +435,10 @@ class LayoutApp(TabbedPanel):
         Clock.schedule_once(partial(self._update_plot_points, data), 0)
 
     def write_reg(self, val, reg_no):
-        print 'write reg'
         self.comm.write_reg(reg_no, int(val * 10), self.on_write_reg)
 
     def on_write_reg(self, inst):
-        print 'write successfully'
+        pass
 
 
 class KvHome(App):
