@@ -1,0 +1,2 @@
+title=KvHomeauthor=Piotro
+orientation=all
