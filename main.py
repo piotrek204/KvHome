@@ -18,10 +18,6 @@ from kivy.uix.popup import Popup
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
-
-# sys.path.append(os.path.abspath(os.path.join('./pymodbuskivy')))
-sys.path.append(os.path.abspath(os.path.join('./garden_graph')))
-
 from garden_graph import Graph, MeshLinePlot
 
 from pymodbus.client.sync import ModbusTcpClient as ModbusClient
@@ -281,8 +277,6 @@ class ClientEngine():
         self.stopper.set()
         self.th.join()
 
-from kivy.uix.scrollview import ScrollView
-from kivy.core.window import Window
 
 class LayoutApp(TabbedPanel):
     """Layout of main window"""
@@ -376,7 +370,6 @@ class LayoutApp(TabbedPanel):
                 self.details_wdgts_list.append(widget)
                 self.tbDetailsLayout.add_widget(widget)
         self.tbDetailsLayout.add_widget(Separator())
-
 
     def show_set_popup(self, instance):
         popup = SetPopup(title=instance.name_txt, set_val=instance.value, send_callback=self.write_reg,
