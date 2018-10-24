@@ -22,14 +22,14 @@ Environment:
 
 ## Screen shots Ubuntu/Android:
 ### Live Data tab:
-<img src="/screenshot/Live_data_ubuntu.png" width="440px"><img src="/screenshot/Live_data_ubuntu_android.png" width="200">
+<img src="/screenshot/Live_data_ubuntu.png" width="440px">  <img src="/screenshot/Live_data_android.png" width="200">
 
 ### Chart tab:
-<img src="/screenshot/Chart_ubuntu.png" width="440px"><img src="/screenshot/Chart_android.png" width="200px">
+<img src="/screenshot/Chart_ubuntu.png" width="440px">  <img src="/screenshot/Chart_android.png" width="200px">
 
 ### Heater details tab:
-<img src="/screenshot/Heater_details_ubuntu.png" width="440px"><img src="/screenshot/Heater_details_android.png" width="200px">
+<img src="/screenshot/Heater_details_ubuntu.png" width="440px">  <img src="/screenshot/Heater_details_android.png" width="200px">
 
 ### Heater details tab - setting value in PLC:
-<img src="/screenshot/Set_value_ubuntu.png" width="440px"><img src="/screenshot/Set_value_android.png" width="200px">
+<img src="/screenshot/Set_value_ubuntu.png" width="440px">  <img src="/screenshot/Set_value_android.png" width="200px">
 
