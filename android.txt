@@ -1,2 +1,3 @@
-title=KvHomeauthor=Piotro
+title=KvHome
+author=Piotro
 orientation=all

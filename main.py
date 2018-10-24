@@ -1,3 +1,4 @@
+import os
 import Queue as queue
 import ctypes
 import sys
@@ -18,18 +19,20 @@ from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 
-from pymodbus.client.sync import ModbusTcpClient as ModbusClient
-from pymodbus.transaction import ModbusRtuFramer as ModbusFramer
+# sys.path.append(os.path.abspath(os.path.join('./pymodbuskivy')))
+sys.path.append(os.path.abspath(os.path.join('./garden_graph')))
 
 from garden_graph import Graph, MeshLinePlot
+
+from pymodbus.client.sync import ModbusTcpClient as ModbusClient
+from pymodbus.transaction import ModbusRtuFramer as ModbusFramer
 
 require('1.8.0')
 Config.set('graphics', 'multisamples', '0')
 
 Builder.load_string("""
 <CustomLabel@Label>:
-    size_hint: (1.0, None)
-    height: 30
+    size_hint: (1.0, 0.06)
     pos_hint: {'center_x': .2, 'center_y': .5}
     halign: 'left'
     text_size: self.size
@@ -40,8 +43,7 @@ Builder.load_string("""
     reg_no: 0
 
 <CustomButton@Button>:
-    size_hint: (1.0, None)
-    height: 30
+    size_hint: (1.0, 0.06)
     pos_hint: {'center_x': .2, 'center_y': .5}
     halign: 'left'
     text_size: self.size
@@ -66,8 +68,8 @@ Builder.load_string("""
 
 <LayoutApp>:
     orientation: all
-    #size_hint: .5, .5
     pos_hint: {'center_x': .5, 'center_y': .5}
+
     do_default_tab: False
     tbLiveDataLayout: _liveDataLayout
     tbChartLayout: _chartLayout
@@ -88,11 +90,13 @@ Builder.load_string("""
 
     TabbedPanelItem:
         text: 'Heater details'
-        StackLayout:
-            id: detailsLayout
-            padding: 5
-            spacing: 5
-
+        ScrollView:
+            StackLayout:
+                size_hint: 1, None
+                height: root.height
+                id: detailsLayout
+                padding: 5
+                spacing: 5
 """)
 
 
@@ -135,17 +139,17 @@ class SetBox(BoxLayout):
 
 class SetPopup(Popup):
     def __init__(self, **kwargs):
-        super(SetPopup, self).__init__(title_align='center', title_size=20, **kwargs)
+        super(SetPopup, self).__init__(title_align='center', size_hint=(0.65, 0.35), **kwargs)
         self.send_callback = kwargs.get('send_callback', None)
         self.value = kwargs.get('set_val', None)
         self.reg_no = kwargs.get('reg_no', None)
         self.setup()
 
     def setup(self):
-        content = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        self.set_box = SetBox(value=self.value, size=(200, 30), size_hint=(None, None), pos_hint={'center_x': 0.5})
-        btn_send = Button(text='Set', size=(200, 30), size_hint=(None, None), pos_hint={'center_x': 0.5})
-        btn_cls = Button(text='Close', size=(200, 30), size_hint=(None, None), pos_hint={'center_x': 0.5})
+        content = BoxLayout(orientation='vertical', padding=15, spacing=10)
+        self.set_box = SetBox(value=self.value, size_hint=(0.8, 0.15), pos_hint={'center_x': 0.5})
+        btn_send = Button(text='Set', size_hint=(0.8, 0.15), pos_hint={'center_x': 0.5})
+        btn_cls = Button(text='Close', size_hint=(0.8, 0.15), pos_hint={'center_x': 0.5})
 
         btn_send.bind(on_press=self.send)
         btn_cls.bind(on_press=self.dismiss)
@@ -154,12 +158,9 @@ class SetPopup(Popup):
         content.add_widget(btn_cls)
 
         self.content = content
-        self.size = (300, 210)
-        self.size_hint = (None, None)
 
     def send(self, callback):
         self.dismiss()
-        print self.set_box.get_value()
         return self.send_callback(self.set_box.get_value(), self.reg_no)
 
 
@@ -231,7 +232,7 @@ class ClientEngine():
         self.svrIp = kwargs.get('svrIp', None)
         self.svrPort = kwargs.get('svrPort', None)
         self.mbFramer = kwargs.get('mbFramer', None)
-        self.client = ModbusClient(self.svrIp, port=self.svrPort, framer=self.mbFramer)
+        self.client = ModbusClient(self.svrIp, port=self.svrPort, framer=self.mbFramer, timeout=1)
         self.stopper = threading.Event()
         self.queue_req = queue.LifoQueue()
 
@@ -246,10 +247,7 @@ class ClientEngine():
             if resp.function_code in [0x01, 0x02, 0x03, 0x04]:
                 response_callback(self, resp.registers)
             elif resp.function_code in [0x06, 0x10]:
-                print 'write resp ok'
                 response_callback(self)
-            else:
-                print resp.function_code
 
     def worker(self):
         while not self.stopper.is_set():
@@ -261,7 +259,6 @@ class ClientEngine():
                         self.queue_req.task_done()
                         time.sleep(0.1)
                 else:
-                    print("lost connection to server")
                     self.callback.on_connection_lost(self)
             except:
                 print sys.exc_info()
@@ -284,6 +281,8 @@ class ClientEngine():
         self.stopper.set()
         self.th.join()
 
+from kivy.uix.scrollview import ScrollView
+from kivy.core.window import Window
 
 class LayoutApp(TabbedPanel):
     """Layout of main window"""
@@ -312,31 +311,26 @@ class LayoutApp(TabbedPanel):
     def __init__(self):
         super(LayoutApp, self).__init__()
         self.plot_point_list = []
-        self.comm = None
-        self.setup_gui()
+        self.comm = ClientEngine(svrIp=self.SERVER_IP, svrPort=self.SERVER_PORT, mbFramer=ModbusFramer,
+                                 callback=self, timeout=0.5)
+        self.comm.start()
         self.cyclic_read = None
+        Clock.schedule_once(self.setup_gui)
+        self.bind(current_tab=self.on_changed_tab)
 
-    def switch_to(self, header, do_scroll=False):
-        super(LayoutApp, self).switch_to(header, do_scroll)
-
+    def on_changed_tab(self, instance, dt):
         if self.cyclic_read:  # previous scheduled event must be cancel before new schedule
             self.cyclic_read.cancel()
 
         tp_txt_name = self.get_current_tab().text
         if tp_txt_name == 'Live Data':
-            method = self.read_live_data
+            self.cyclic_read = Clock.schedule_interval(self.read_live_data, 1)
         elif tp_txt_name == 'Chart':
-            method = self.read_chart_data
+            self.cyclic_read = Clock.schedule_interval(self.read_chart_data, 1)
         elif tp_txt_name == 'Heater details':
-            method = self.read_details_data
-        else:
-            method = callable
-        self.cyclic_read = Clock.schedule_interval(method, 1)
+            self.cyclic_read = Clock.schedule_interval(self.read_details_data, 1)
 
-    def setup_gui(self):
-        self.comm = ClientEngine(svrIp=self.SERVER_IP, svrPort=self.SERVER_PORT, mbFramer=ModbusFramer,
-                                 callback=self, timeout=0.5)
-        self.comm.start()
+    def setup_gui(self, dt):
         self._prepare_live_data_layout()
         self._prepare_chart_layout()
         self._prepare_details_layout()
@@ -358,6 +352,7 @@ class LayoutApp(TabbedPanel):
                 self.ld_wdgts_list.append(widget)
                 self.tbLiveDataLayout.add_widget(widget)
         self.tbLiveDataLayout.add_widget(Separator())
+        self.cyclic_read = Clock.schedule_interval(self.read_live_data, 1)
 
     def _prepare_chart_layout(self):
         x_min = -1 * self.SAMPLES_INTERVAL_M * self.SAMPLES_QUANTITY
@@ -381,6 +376,7 @@ class LayoutApp(TabbedPanel):
                 self.details_wdgts_list.append(widget)
                 self.tbDetailsLayout.add_widget(widget)
         self.tbDetailsLayout.add_widget(Separator())
+
 
     def show_set_popup(self, instance):
         popup = SetPopup(title=instance.name_txt, set_val=instance.value, send_callback=self.write_reg,
@@ -413,8 +409,8 @@ class LayoutApp(TabbedPanel):
     def stop(self):
         self.comm.stop()
 
-    def on_connection_lost(self):
-        pass
+    def on_connection_lost(self, inst):
+        print "lost connection"
 
     def read_live_data(self, inst):
         self.comm.read_reg(0, 32, self.on_resp_live_data)
